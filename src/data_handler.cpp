@@ -131,9 +131,9 @@ void data_handler::generate_dataset(const std::string &dataset_name,
     // Zakres [1, 999'999] — wartość 1'000'000 jest zarezerwowana jako unikalna
     // wartość szukana przez operację find w benchmarku.
     std::uniform_int_distribution<int> num_dist(1, 999'999);
-
+    std::uniform_int_distribution<int> key_dist(1, 2000000);
     for (int j = 0; j < max_points; ++j) {
-      data_file << num_dist(file_rng) << "\n";
+      data_file << key_dist(file_rng) << ',' << num_dist(file_rng) << "\n";
     }
     data_file.close();
   }

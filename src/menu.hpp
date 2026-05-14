@@ -1,20 +1,19 @@
 #pragma once
 #include "benchmark.hpp"
 #include "data_handler.hpp"
-#include "doubly_linked_list.hpp"
-#include "singly_linked_list.hpp"
-#include "array_list.hpp"
+#include "IIList.hpp"
+#include "pairing_heap.hpp"
 #include <iostream>
 
 class menu{
 private:
-    IList<int>* _type;
+    IIList<int>* _type;
     std::string _dataset_name, _list_type;
     std::vector<int> _points;
     int _num_files;
     unsigned int _main_seed;
 public:
-    menu() : _type(nullptr), _dataset_name("benchmark_test_dataset"), _list_type("singly_linked_list"), _points({1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000}), _num_files(100), _main_seed(42) {};
+    menu() : _type(nullptr), _dataset_name("benchmark_test_dataset"), _list_type("pairing_heap"), _points({1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000}), _num_files(100), _main_seed(42) {};
     void display_menu(){
         std::cout << "1. Choose List Type:\n";
         std::cout << "2. Choose dataset.\n";
@@ -27,27 +26,17 @@ public:
     void choose_list_type(){
         int choice;
         std::cout << "Choose List Type:\n";
-        std::cout << "1. Singly Linked List\n";
-        std::cout << "2. Doubly Linked List\n";
-        std::cout << "3. Array List\n";
+        std::cout << "1. Pairing heap\n";
         std::cin >> choice;
         switch (choice) {
             case 1:
-                _type = new singly_linked_list<int>();
-                _list_type = "singly_linked_list";
-                break;
-            case 2:
-                _type = new doubly_linked_list<int>();
-                _list_type = "doubly_linked_list";
-                break;
-            case 3:
-                _type = new array_list<int>();
-                _list_type = "array_list";
+                _type = new pairing_heap<int>();
+                _list_type = "pairing_heap";
                 break;
             default:
                 std::cout << "Invalid choice. Defaulting to Singly Linked List.\n";
-                _type = new singly_linked_list<int>();
-                _list_type = "singly_linked_list";
+                _type = new pairing_heap<int>();
+                _list_type = "pairing_heap";
         }
     }
     void generate_dataset(){
@@ -61,16 +50,13 @@ public:
             << "'...\n";
         benchmark bench(_dataset_name);
         std::cout << "\nRunning Tests for " << _dataset_name <<" "<< _list_type <<"...\n";
-        if(_list_type == "singly_linked_list"){
-            bench.run_structure_tests<singly_linked_list<int>>(
-                "singly_linked_list", []() { return new singly_linked_list<int>(); });
-        } else if(_list_type == "doubly_linked_list"){
-            bench.run_structure_tests<doubly_linked_list<int>>(
-                "doubly_linked_list", []() { return new doubly_linked_list<int>(); });
-        } else if(_list_type == "array_list"){
-            bench.run_structure_tests<array_list<int>>(
-                "array_list", []() { return new array_list<int>(); });
-        }
+        if(_list_type == "pairing_heap"){
+            bench.run_structure_tests<pairing_heap<int>>(
+                "pairing_heap", []() { return new pairing_heap<int>(); });
+            }
+        // else if(_list_type == "doubly_linked_list"){
+        //     bench.run_structure_tests<doubly_linked_list<int>>(
+        //         "doubly_linked_list", []() { return new doubly_linked_list<int>(); });
         std::cout<< "\nBenchmarks finished successfully. Results saved to results/"<< _dataset_name << "/\n";
     }
     void parameters(){
@@ -95,63 +81,43 @@ public:
         int choice;
         while(true){
             std::cout << "Manual Mode:\n";
-            std::cout << "1. Push Front\n";
-            std::cout << "2. Push Back\n";
-            std::cout << "3. Pop Front\n";
-            std::cout << "4. Pop Back\n";
-            std::cout << "5. Insert at Index\n";
-            std::cout << "6. Remove at Index\n";
-            std::cout << "7. Find Value\n";
-            std::cout << "8. Display List\n";
-            std::cout << "9. Check Size\n";
-            std::cout << "10. Clear List\n";
+            std::cout << "1. Peek\n";
+            std::cout << "2. Extract Max\n";
+            std::cout << "3. Insert\n";
+            std::cout << "4. Modify Key\n";
+            std::cout << "5. Display List\n";
+            std::cout << "6. Check Size\n";
+            std::cout << "7. Clear List\n";
             std::cout << "0. Exit Manual Mode\n";
             std::cin >> choice;
             if(choice == 0) break;
-            int value, index;
+            int value, key;
             switch (choice) {
                 case 1:
-                    std::cout << "Enter value to push front: ";
-                    std::cin >> value;
-                    _type->push_front(value);
+                    std::cout << "Peek: " << _type->peek() << "\n";
                     break;
                 case 2:
-                    std::cout << "Enter value to push back: ";
-                    std::cin >> value;
-                    _type->push_back(value);
+                    std::cout << "Extract max: " << _type->extract_max() << "\n";
                     break;
                 case 3:
-                    _type->pop_front();
+                    std::cout << "Enter value and key to insert: ";
+                    std::cin >> value >> key;
+                    _type->insert(value, key);
                     break;
                 case 4:
-                    _type->pop_back();
+                    std::cout << "Enter value to modify key: ";
+                    std::cin >> value;
+                    std::cout << "Enter new key: ";
+                    std::cin >> key;
+                    _type->modify_key(value, key);
                     break;
                 case 5:
-                    std::cout << "Enter value and index to insert: ";
-                    std::cin >> value >> index;
-                    _type->insert(value, index);
-                    break;
-                case 6:
-                    std::cout << "Enter index to remove: ";
-                    std::cin >> index;
-                    _type->remove(index);
-                    break;
-                case 7:
-                    std::cout << "Enter value to find: ";
-                    std::cin >> value;
-                    if(_type->find(value)){
-                        std::cout << "Value found in list.\n";
-                    } else {
-                        std::cout << "Value not found in list.\n";
-                    }
-                    break;
-                case 8:
                     _type->display();
                     break;
-                case 9:
-                    std::cout << "List size: " << _type->get_size() << "\n";
+                case 6:
+                    std::cout << "List size: " << _type->return_size() << "\n";
                     break;
-                case 10:
+                case 7:
                     _type->clear();
                     std::cout << "List cleared.\n";
                     break;

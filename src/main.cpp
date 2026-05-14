@@ -1,8 +1,5 @@
 #include "benchmark.hpp"
 #include "data_handler.hpp"
-#include "doubly_linked_list.hpp"
-#include "singly_linked_list.hpp"
-#include "array_list.hpp"
 #include "menu.hpp"
 #include <iostream>
 

@@ -34,30 +34,6 @@ Node<T>* pairing_heap<T>::meld(Node<T>* heap1, Node<T>* heap2) {
     }
 }
 
-// Helper function: merge all siblings using the pairing strategy
-template <typename T>
-Node<T>* pairing_heap<T>::mergeSiblings(Node<T>* sibling) {
-    if (!sibling) return nullptr;
-    if (!sibling->sibling) return sibling;
-    
-    // First pass: pair up siblings
-    Node<T>* merged = meld(sibling, sibling->sibling);
-    sibling->sibling = nullptr;
-    if (sibling->sibling) {
-        sibling->sibling->sibling = nullptr;
-    }
-    
-    Node<T>* next = sibling->sibling ? sibling->sibling->sibling : nullptr;
-    
-    // Continue with remaining siblings
-    if (next) {
-        Node<T>* mergedNext = mergeSiblings(next);
-        return meld(merged, mergedNext);
-    }
-    
-    return merged;
-}
-
 // Helper function: recursively delete all nodes in a tree
 template <typename T>
 void pairing_heap<T>::deleteTree(Node<T>* node) {
@@ -118,7 +94,7 @@ T pairing_heap<T>::extract_max() {
     Node<T>* firstChild = root->child;
 
     if (firstChild) {
-        root = mergePairs(firstChild);
+        root = twoPassMerge(firstChild);
         // std::cout << "Merged children of old root.\n";
     } else {
         root = nullptr;
@@ -129,68 +105,58 @@ T pairing_heap<T>::extract_max() {
     return val;
 }
 
-// Helper function: merge pairs of siblings iteratively (no vector needed)
+
 template <typename T>
-Node<T>* pairing_heap<T>::mergePairs(Node<T>* head) {
-    if (!head) return nullptr;
-    if (!head->sibling) {
-        head->sibling = nullptr;
-        return head;
+Node<T>* pairing_heap<T>::twoPassMerge(Node<T>* firstSibling) {
+    if (!firstSibling) return nullptr;
+    if (!firstSibling->sibling) {
+        firstSibling->sibling = nullptr;
+        return firstSibling;
     }
-    
-    // Two-pass algorithm for O(log n) amortized time:
-    // Pass 1: Pair up consecutive children from left to right
-    Node<T>* pass1 = nullptr;
-    Node<T>* last = nullptr;
-    Node<T>* current = head;
-    
-    while (current) {
-        Node<T>* first = current;
-        Node<T>* second = current->sibling;
-        
-        Node<T>* merged;
-        if (second) {
-            current = second->sibling;
-            first->sibling = nullptr;
-            second->sibling = nullptr;
-            merged = meld(first, second);
-        } else {
-            current = nullptr;
-            first->sibling = nullptr;
-            merged = first;
-        }
-        
-        // Add to pass1 list
-        if (!pass1) {
-            pass1 = merged;
-            last = merged;
-        } else {
-            last->sibling = merged;
-            last = merged;
-        }
-    }
-    
-    // Pass 2: Merge from right to left using reverse iteration
-    // Reverse the list first
-    Node<T>* reversed = nullptr;
-    current = pass1;
-    while (current) {
-        Node<T>* next = current->sibling;
-        current->sibling = reversed;
-        reversed = current;
+
+    Node<T>* current = firstSibling;
+    Node<T>* pairedStack = nullptr; 
+
+    // Pass 1: Left-to-Right merge in pairs.
+    // We push the merged pairs onto 'pairedStack' to reverse their order.
+    while (current && current->sibling) {
+        Node<T>* A = current;
+        Node<T>* B = current->sibling;
+        Node<T>* next = B->sibling;
+
+        // Isolate the pair
+        A->sibling = nullptr;
+        B->sibling = nullptr;
+
+        // Meld and push to our temporary stack
+        Node<T>* merged = meld(A, B);
+        merged->sibling = pairedStack; 
+        pairedStack = merged;
+
         current = next;
     }
-    
-    // Now merge from left (which is rightmost of original) to right
-    Node<T>* result = nullptr;
-    current = reversed;
-    while (current) {
-        Node<T>* next = current->sibling;
-        current->sibling = nullptr;
-        result = (result == nullptr) ? current : meld(current, result);
-        current = next;
+
+    // If there is an odd number of siblings, push the last one
+    if (current) {
+        current->sibling = pairedStack;
+        pairedStack = current;
     }
-    
+
+    // Pass 2: Right-to-Left merge.
+    // Popping from our stack automatically processes them Right-to-Left.
+    Node<T>* result = pairedStack;
+    pairedStack = pairedStack->sibling;
+    result->sibling = nullptr;
+
+    while (pairedStack) {
+        Node<T>* next = pairedStack->sibling;
+        pairedStack->sibling = nullptr;
+        
+        result = meld(pairedStack, result);
+        
+        pairedStack = next;
+    }
+
     return result;
 }
 
@@ -245,11 +211,21 @@ void pairing_heap<T>::modify_key(T value, int new_key) {
     }
     
     // Update the key
+    int old_key = node->_key;
     node->_key = new_key;
     
     // If it's the root, no restructuring needed
     if (node == root) {
-        return;
+        if(new_key < old_key) {
+            // If the key decreased, we may need to move it down
+            Node<T>* children = node->child;
+            node->child = nullptr; // Detach children for merging
+            if (children) {
+                Node<T>* mergedChildren = twoPassMerge(children);
+                root = meld(root, mergedChildren);
+            }
+        }
+        else return;
     }
     
     // NAJPIERW odłącz węzeł od drzewa, szukając go od KORZENIA
@@ -262,7 +238,7 @@ void pairing_heap<T>::modify_key(T value, int new_key) {
     
     // Merge the node's children
     if (children) {
-        Node<T>* mergedChildren = mergePairs(children);
+        Node<T>* mergedChildren = twoPassMerge(children);
         Node<T>* newHeap = meld(node, mergedChildren);
         root = meld(root, newHeap);
     } else {

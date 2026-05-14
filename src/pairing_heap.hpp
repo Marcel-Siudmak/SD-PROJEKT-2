@@ -21,8 +21,7 @@ private:
   
   // Helper methods
   Node<T>* meld(Node<T>* heap1, Node<T>* heap2);
-  Node<T>* mergeSiblings(Node<T>* sibling);
-  Node<T>* mergePairs(Node<T>* head);
+  Node<T>* twoPassMerge(Node<T>* firstSibling);
   void deleteTree(Node<T>* node);
   Node<T>* findNode(Node<T>* node, T value);
   bool disconnectNode(Node<T>*& node, T value);

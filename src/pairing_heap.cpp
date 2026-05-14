@@ -1,7 +1,7 @@
 #include "pairing_heap.hpp"
-#include <stdexcept>
 #include <functional>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 
 template <typename T>
@@ -294,6 +294,13 @@ template <typename T>
 void pairing_heap<T>::clear() {
     deleteTree(root);
     root = nullptr;
+    _size = 0;
+}
+
+template <typename T>
+void pairing_heap<T>::clear() {
+    deleteTree(root);
+    root  = nullptr;
     _size = 0;
 }
 

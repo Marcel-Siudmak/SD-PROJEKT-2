@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -43,13 +44,14 @@ public:
     std::string line;
     int count = 0;
     while (count < num_elements && std::getline(file, line)) {
-      line = line.replace(line.find(','), 1, " "); // Zamień przecinek na spację
+      // Format pliku: "klucz,wartość" (generowany przez data_handler)
       std::stringstream ss(line);
-      ss >> key;
-      ss >> val;
-      // std::cout<< "Inserting: " << val << " with key: " << key << std::endl;
-      list.insert(val,key);
-      count++;
+      char comma;
+      ss >> key >> comma >> val;
+      if (ss) {
+        list.insert(val, key);
+        count++;
+      }
     }
 
     if (count < num_elements) {

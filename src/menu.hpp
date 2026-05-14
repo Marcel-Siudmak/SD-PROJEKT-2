@@ -3,162 +3,205 @@
 #include "data_handler.hpp"
 #include "IIList.hpp"
 #include "pairing_heap.hpp"
+#include "priority_q.hpp"
 #include <iostream>
 
-class menu{
+class menu {
 private:
     IIList<int>* _type;
-    std::string _dataset_name, _list_type;
+    std::string  _dataset_name, _list_type;
     std::vector<int> _points;
-    int _num_files;
+    int          _num_files;
     unsigned int _main_seed;
+
 public:
-    menu() : _type(nullptr), _dataset_name("benchmark_test_dataset"), _list_type("pairing_heap"), _points({1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000}), _num_files(100), _main_seed(42) {};
-    void display_menu(){
-        std::cout << "1. Choose List Type:\n";
-        std::cout << "2. Choose dataset.\n";
-        std::cout << "3. Generate/Rebuild Dataset.\n";
-        std::cout << "4. Choose Benchmark parameters.\n";
-        std::cout << "5. Run Benchmarks\n";
-        std::cout << "6. Manual Mode\n";
-        std::cout << "7. Exit\n";
+    menu()
+        : _type(nullptr),
+          _dataset_name("benchmark_test_dataset"),
+          _list_type("pq_heap"),
+          _points({1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000}),
+          _num_files(100),
+          _main_seed(42) {}
+
+    ~menu() { delete _type; }
+
+    void display_menu() {
+        std::cout << "\n===== MENU =====\n";
+        std::cout << "1. Wybierz strukturę danych\n";
+        std::cout << "2. Wybierz dataset\n";
+        std::cout << "3. Generuj/przebuduj dataset\n";
+        std::cout << "4. Parametry benchmarku\n";
+        std::cout << "5. Uruchom benchmarki\n";
+        std::cout << "6. Tryb manualny\n";
+        std::cout << "7. Wyjście\n";
+        std::cout << "Wybierz: ";
     }
-    void choose_list_type(){
+
+    void choose_list_type() {
+        std::cout << "Wybierz strukturę:\n";
+        std::cout << "1. Kolejka priorytetowa (pairing heap)\n";
+        std::cout << "2. Kolejka priorytetowa (posortowana lista)\n";
+        std::cout << "Wybierz: ";
         int choice;
-        std::cout << "Choose List Type:\n";
-        std::cout << "1. Pairing heap\n";
         std::cin >> choice;
+
+        delete _type;
         switch (choice) {
             case 1:
-                _type = new pairing_heap<int>();
-                _list_type = "pairing_heap";
+                _type      = new pq_heap<int>();
+                _list_type = "pq_heap";
+                break;
+            case 2:
+                _type      = new pq_list<int>();
+                _list_type = "pq_list";
                 break;
             default:
-                std::cout << "Invalid choice. Defaulting to Singly Linked List.\n";
-                _type = new pairing_heap<int>();
-                _list_type = "pairing_heap";
+                std::cout << "Nieprawidłowy wybór. Ustawiam pq_heap.\n";
+                _type      = new pq_heap<int>();
+                _list_type = "pq_heap";
         }
+        std::cout << "Wybrano: " << _list_type << "\n";
     }
-    void generate_dataset(){
-        std::cout << "Generating/Rebuilding dataset '" << _dataset_name
-            << "' with " << _num_files << " files...\n";
+
+    void generate_dataset() {
+        std::cout << "Generuję dataset '" << _dataset_name
+                  << "' (" << _num_files << " plików)...\n";
         data_handler::delete_dataset(_dataset_name);
         data_handler::generate_dataset(_dataset_name, _points, _num_files, _main_seed);
+        std::cout << "Gotowe.\n";
     }
-    void run_benchmarks(){
-        std::cout << "\nInitializing benchmark suite for '" << _dataset_name
-            << "'...\n";
+
+    void run_benchmarks() {
+        std::cout << "\nInicjalizuję benchmark dla '" << _dataset_name << "'...\n";
         benchmark bench(_dataset_name);
-        std::cout << "\nRunning Tests for " << _dataset_name <<" "<< _list_type <<"...\n";
-        if(_list_type == "pairing_heap"){
-            bench.run_structure_tests<pairing_heap<int>>(
-                "pairing_heap", []() { return new pairing_heap<int>(); });
-            }
-        // else if(_list_type == "doubly_linked_list"){
-        //     bench.run_structure_tests<doubly_linked_list<int>>(
-        //         "doubly_linked_list", []() { return new doubly_linked_list<int>(); });
-        std::cout<< "\nBenchmarks finished successfully. Results saved to results/"<< _dataset_name << "/\n";
+        std::cout << "Testuję: " << _list_type << "\n";
+
+        if (_list_type == "pq_heap") {
+            bench.run_structure_tests<pq_heap<int>>(
+                "pq_heap", []() { return new pq_heap<int>(); });
+        } else if (_list_type == "pq_list") {
+            bench.run_structure_tests<pq_list<int>>(
+                "pq_list", []() { return new pq_list<int>(); });
+        } else {
+            std::cout << "Nieznana struktura.\n";
+            return;
+        }
+        std::cout << "\nBenchmark zakończony. Wyniki w results/" << _dataset_name << "/\n";
     }
-    void parameters(){
-        std::cout << "Enter number of test files: ";
+
+    void parameters() {
+        std::cout << "Liczba plików testowych: ";
         std::cin >> _num_files;
-        std::cout << "Enter main seed: ";
+        std::cout << "Główny seed: ";
         std::cin >> _main_seed;
-        std::cout << "Enter measurement points (comma separated): ";
-        std::string points_input;
-        std::cin >> points_input;
+        std::cout << "Punkty pomiarowe (przecinkami, np. 1000,5000): ";
+        std::string pts;
+        std::cin >> pts;
         _points.clear();
         size_t pos = 0;
-        while ((pos = points_input.find(',')) != std::string::npos) {
-            _points.push_back(std::stoi(points_input.substr(0, pos)));
-            points_input.erase(0, pos + 1);
+        while ((pos = pts.find(',')) != std::string::npos) {
+            _points.push_back(std::stoi(pts.substr(0, pos)));
+            pts.erase(0, pos + 1);
         }
-        if (!points_input.empty()) {
-            _points.push_back(std::stoi(points_input));
+        if (!pts.empty()) {
+            _points.push_back(std::stoi(pts));
         }
     }
-    void manual_mode(){
+
+    void manual_mode() {
+        if (!_type) {
+            std::cout << "Najpierw wybierz strukturę (opcja 1).\n";
+            return;
+        }
         int choice;
-        while(true){
-            std::cout << "Manual Mode:\n";
-            std::cout << "1. Peek\n";
-            std::cout << "2. Extract Max\n";
-            std::cout << "3. Insert\n";
-            std::cout << "4. Modify Key\n";
-            std::cout << "5. Display List\n";
-            std::cout << "6. Check Size\n";
-            std::cout << "7. Clear List\n";
-            std::cout << "0. Exit Manual Mode\n";
+        while (true) {
+            std::cout << "\n--- Tryb manualny [" << _list_type << "] ---\n";
+            std::cout << "1. Wstaw (insert)\n";
+            std::cout << "2. Pobierz maksimum bez usuwania (peek)\n";
+            std::cout << "3. Usuń maksimum (extract_max)\n";
+            std::cout << "4. Zmień klucz (modify_key)\n";
+            std::cout << "5. Wyświetl\n";
+            std::cout << "6. Rozmiar\n";
+            std::cout << "7. Wyczyść\n";
+            std::cout << "0. Powrót\n";
+            std::cout << "Wybierz: ";
             std::cin >> choice;
-            if(choice == 0) break;
+            if (choice == 0) break;
+
             int value, key;
             switch (choice) {
                 case 1:
-                    std::cout << "Peek: " << _type->peek() << "\n";
-                    break;
-                case 2:
-                    std::cout << "Extract max: " << _type->extract_max() << "\n";
-                    break;
-                case 3:
-                    std::cout << "Enter value and key to insert: ";
+                    std::cout << "Wartość i klucz: ";
                     std::cin >> value >> key;
                     _type->insert(value, key);
+                    std::cout << "Wstawiono.\n";
+                    break;
+                case 2:
+                    try {
+                        std::cout << "Maksimum: " << _type->peek() << "\n";
+                    } catch (const std::exception& e) {
+                        std::cout << "Błąd: " << e.what() << "\n";
+                    }
+                    break;
+                case 3:
+                    try {
+                        _type->extract_max();
+                        std::cout << "Usunięto maksimum.\n";
+                    } catch (const std::exception& e) {
+                        std::cout << "Błąd: " << e.what() << "\n";
+                    }
                     break;
                 case 4:
-                    std::cout << "Enter value to modify key: ";
-                    std::cin >> value;
-                    std::cout << "Enter new key: ";
-                    std::cin >> key;
-                    _type->modify_key(value, key);
+                    std::cout << "Wartość i nowy klucz: ";
+                    std::cin >> value >> key;
+                    try {
+                        _type->modify_key(value, key);
+                        std::cout << "Klucz zmieniony.\n";
+                    } catch (const std::exception& e) {
+                        std::cout << "Błąd: " << e.what() << "\n";
+                    }
                     break;
                 case 5:
                     _type->display();
                     break;
                 case 6:
-                    std::cout << "List size: " << _type->return_size() << "\n";
+                    std::cout << "Rozmiar: " << _type->return_size() << "\n";
                     break;
                 case 7:
                     _type->clear();
-                    std::cout << "List cleared.\n";
+                    std::cout << "Wyczyszczono.\n";
                     break;
-
                 default:
-                    std::cout << "Invalid choice.\n";
+                    std::cout << "Nieprawidłowy wybór.\n";
             }
         }
     }
-    void run(){
-        std::cout << "Welcome to the List Benchmarking Tool!\n";
-        while(true){
+
+    void run() {
+        std::cout << "=== Narzędzie do benchmarkowania kolejek priorytetowych ===\n";
+        // Domyślna struktura
+        _type = new pq_heap<int>();
+
+        while (true) {
             display_menu();
             int choice;
             std::cin >> choice;
             switch (choice) {
-                case 1:
-                    choose_list_type();
-                    break;
+                case 1: choose_list_type(); break;
                 case 2:
-                    std::cout << "Current dataset: " << _dataset_name << "\n";
-                    std::cout << "Enter new dataset name: ";
+                    std::cout << "Bieżący dataset: " << _dataset_name << "\n";
+                    std::cout << "Nowa nazwa: ";
                     std::cin >> _dataset_name;
                     break;
-                case 3:
-                    generate_dataset();
-                    break;
-                case 4:
-                    parameters();
-                    break;
-                case 5:
-                    run_benchmarks();
-                    break;
-                case 6:
-                    manual_mode();
-                    break;
+                case 3: generate_dataset(); break;
+                case 4: parameters(); break;
+                case 5: run_benchmarks(); break;
+                case 6: manual_mode(); break;
                 case 7:
-                    std::cout << "Exiting...\n";
+                    std::cout << "Zamykam...\n";
                     return;
                 default:
-                    std::cout << "Invalid choice. Please try again.\n";
+                    std::cout << "Nieprawidłowy wybór.\n";
             }
         }
     }

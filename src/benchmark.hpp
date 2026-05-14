@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "IList.hpp"
+#include "IIList.hpp"
 #include "data_handler.hpp"
 
 using BenchmarkResults = std::map<std::string, std::map<int, double>>;
@@ -39,7 +39,7 @@ public:
       // ---------------------------------------------------------------
       // Buduj instancje i zapamiętaj seed każdego pliku
       // ---------------------------------------------------------------
-      std::vector<IList<int> *> instances(num_instances);
+      std::vector<IIList<int> *> instances(num_instances);
       std::vector<unsigned int> file_seeds(num_instances);
 
       for (size_t i = 0; i < num_instances; ++i) {
@@ -48,29 +48,55 @@ public:
         file_seeds[i] = dataset_.get_file_seed(test_files[i]);
       }
 
+      // 1. peek()
+      results["peek"][n] = measure_operation(instances, [](IIList<int> *list) {list->peek();});
+
+      // 2. extract_max()
+      results["extract_max"][n] = measure_operation(instances, [](IIList<int> *list) {list->extract_max();})
+
+      for (size_t i = 0; i < num_instances; ++i) {
+        dataset_.load_to_list(test_files[i], n, *instances[i]);
+      }
+
+      // 3. insert()
+              // Wstaw unikalną wartość na losowy indeks (poza pomiarem)
+        for (size_t i = 0; i < num_instances; ++i) {
+        dataset_.load_to_list(test_files[i], n, *instances[i]);
+        }
+
+      results["insert_random"][n] = measure_operation_with_seeds(
+          instances, file_seeds, n,
+          [](IIList<int> *list, int idx, int /*n*/) {
+            list->insert(1000000, idx);
+          });
+      // 4. modify_key()
+      results["modify_key"][n] = measure_operation_with_seeds(instances, file_seeds, n,
+          [](IIList<int> *list, int idx, int /*n*/) {
+            list->modify_key(1000000, idx);
+          });
       // ---------------------------------------------------------------
       // 1. push_front
       // ---------------------------------------------------------------
-      results["push_front"][n] = measure_operation(
-          instances, [](IList<int> *list) { list->push_front(999); });
+      // results["push_front"][n] = measure_operation(
+      //     instances, [](IList<int> *list) { list->push_front(999); });
 
       // ---------------------------------------------------------------
       // 2. push_back
       // ---------------------------------------------------------------
-      results["push_back"][n] = measure_operation(
-          instances, [](IList<int> *list) { list->push_back(999); });
+      // results["push_back"][n] = measure_operation(
+      //     instances, [](IList<int> *list) { list->push_back(999); });
 
       // ---------------------------------------------------------------
       // 3. pop_front
       // ---------------------------------------------------------------
-      results["pop_front"][n] = measure_operation(
-          instances, [](IList<int> *list) { list->pop_front(); });
+      // results["pop_front"][n] = measure_operation(
+      //     instances, [](IList<int> *list) { list->pop_front(); });
 
-      // ---------------------------------------------------------------
+      // // ---------------------------------------------------------------
       // 4. pop_back
       // ---------------------------------------------------------------
-      results["pop_back"][n] = measure_operation(
-          instances, [](IList<int> *list) { list->pop_back(); });
+      // results["pop_back"][n] = measure_operation(
+      //     instances, [](IList<int> *list) { list->pop_back(); });
 
       // ---------------------------------------------------------------
       // 5. insert na losowym indeksie
@@ -80,30 +106,30 @@ public:
       // ---------------------------------------------------------------
 
       // Przeładuj instancje (pop_front/pop_back zmodyfikowały listy)
-      for (size_t i = 0; i < num_instances; ++i) {
-        dataset_.load_to_list(test_files[i], n, *instances[i]);
-      }
+      // for (size_t i = 0; i < num_instances; ++i) {
+      //   dataset_.load_to_list(test_files[i], n, *instances[i]);
+      // }
 
-      results["insert_random"][n] = measure_operation_with_seeds(
-          instances, file_seeds, n,
-          [](IList<int> *list, int idx, int /*n*/) {
-            list->insert(999, idx);
-          },
-          /* index_range_is_n_plus_one = */ true); // indeks ∈ [0, n]
+      // results["insert_random"][n] = measure_operation_with_seeds(
+      //     instances, file_seeds, n,
+      //     [](IList<int> *list, int idx, int /*n*/) {
+      //       list->insert(999, idx);
+      //     },
+      //     /* index_range_is_n_plus_one = */ true); // indeks ∈ [0, n]
 
       // ---------------------------------------------------------------
       // 6. remove na losowym indeksie
       // ---------------------------------------------------------------
-      for (size_t i = 0; i < num_instances; ++i) {
-        dataset_.load_to_list(test_files[i], n, *instances[i]);
-      }
+      // for (size_t i = 0; i < num_instances; ++i) {
+      //   dataset_.load_to_list(test_files[i], n, *instances[i]);
+      // }
 
-      results["remove_random"][n] = measure_operation_with_seeds(
-          instances, file_seeds, n,
-          [](IList<int> *list, int idx, int /*n*/) {
-            list->remove(idx);
-          },
-          /* index_range_is_n_plus_one = */ false); // indeks ∈ [0, n-1]
+      // results["remove_random"][n] = measure_operation_with_seeds(
+      //     instances, file_seeds, n,
+      //     [](IList<int> *list, int idx, int /*n*/) {
+      //       list->remove(idx);
+      //     },
+       //   /* index_range_is_n_plus_one = */ false); // indeks ∈ [0, n-1]
 
       // ---------------------------------------------------------------
       // 7. find — szukamy wartości 1'000'000 wstawionej deterministycznie.
@@ -114,19 +140,19 @@ public:
       //      c) wstaw 1'000'000 na find_idx
       //    Ponieważ dane są z [1, 999'999], wartość 1'000'000 jest unikalna.
       // ---------------------------------------------------------------
-      for (size_t i = 0; i < num_instances; ++i) {
-        dataset_.load_to_list(test_files[i], n, *instances[i]);
+      // for (size_t i = 0; i < num_instances; ++i) {
+      //   dataset_.load_to_list(test_files[i], n, *instances[i]);
 
-        // Wstaw unikalną wartość na losowy indeks (poza pomiarem)
-        std::mt19937 rng(file_seeds[i]);
-        std::uniform_int_distribution<int> idx_dist(0, n - 1);
-        int find_idx = idx_dist(rng);
-        instances[i]->remove(find_idx);
-        instances[i]->insert(1'000'000, find_idx);
-      }
+      //   // Wstaw unikalną wartość na losowy indeks (poza pomiarem)
+      //   std::mt19937 rng(file_seeds[i]);
+      //   std::uniform_int_distribution<int> idx_dist(0, n - 1);
+      //   int find_idx = idx_dist(rng);
+      //   instances[i]->remove(find_idx);
+      //   instances[i]->insert(1'000'000, find_idx);
+      // }
 
-      results["find"][n] = measure_operation(
-          instances, [](IList<int> *list) { list->find(1'000'000); });
+      // results["find"][n] = measure_operation(
+      //     instances, [](IList<int> *list) { list->find(1'000'000); });
 
       // ---------------------------------------------------------------
       // Zwolnij pamięć
@@ -144,8 +170,8 @@ private:
   data_set dataset_;
 
   // Podstawowy pomiar — ta sama operacja dla wszystkich instancji
-  double measure_operation(const std::vector<IList<int> *> &instances,
-                           const std::function<void(IList<int> *)> &operation) {
+  double measure_operation(const std::vector<IIList<int> *> &instances,
+                           const std::function<void(IIList<int> *)> &operation) {
     long long total_nanoseconds = 0;
 
     for (auto list_instance : instances) {
@@ -166,9 +192,9 @@ private:
   // use_n_plus_one=true  → indeks ∈ [0, n]   (insert)
   // use_n_plus_one=false → indeks ∈ [0, n-1] (remove)
   double measure_operation_with_seeds(
-      const std::vector<IList<int> *> &instances,
+      const std::vector<IIList<int> *> &instances,
       const std::vector<unsigned int> &file_seeds, int n,
-      const std::function<void(IList<int> *, int, int)> &operation,
+      const std::function<void(IIList<int> *, int, int)> &operation,
       bool use_n_plus_one) {
     long long total_nanoseconds = 0;
 

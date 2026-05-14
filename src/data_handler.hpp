@@ -1,6 +1,6 @@
 #pragma once
 
-#include "IList.hpp"
+#include "IIList.hpp"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -23,7 +23,7 @@ public:
 
   template <typename T>
   void load_to_list(const std::string &test_file, int num_elements,
-                    IList<T> &list) const {
+                    IIList<T> &list) const {
 #ifndef PROJECT_ROOT_DIR
 #define PROJECT_ROOT_DIR "."
 #endif
@@ -39,9 +39,14 @@ public:
     list.clear();
 
     T val;
+    int key;
+    std::string line;
     int count = 0;
-    while (count < num_elements && file >> val) {
-      list.push_back(val);
+    while (count < num_elements && std::getline(file, line)) {
+      std::stringstream ss(line);
+      line >> key;
+      line >> val;
+      list.insert(val,key);
       count++;
     }
 

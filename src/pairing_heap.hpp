@@ -14,7 +14,7 @@ template <typename T> struct Node {
   }
 };
 
-template <typename T> class PairingHeap : public IIList<T> {
+template <typename T> class pairing_heap : public IIList<T> {
 private:
   Node<T> *root;
   int _size;
@@ -28,8 +28,8 @@ private:
   bool disconnectNode(Node<T>*& node, T value);
 
 public:
-  PairingHeap();
-  ~PairingHeap();
+  pairing_heap();
+  ~pairing_heap();
 
   void insert(T value, int key) override;
   void extract_max() override;

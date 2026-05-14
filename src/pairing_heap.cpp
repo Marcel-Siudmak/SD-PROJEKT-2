@@ -2,10 +2,10 @@
 #include <stdexcept>
 
 template <typename T>
-PairingHeap<T>::PairingHeap() : root(nullptr), _size(0) {}
+pairing_heap<T>::pairing_heap() : root(nullptr), _size(0) {}
 
 template <typename T>
-PairingHeap<T>::~PairingHeap() {
+pairing_heap<T>::~pairing_heap() {
     // Recursively delete all nodes
     deleteTree(root);
     root = nullptr;
@@ -13,7 +13,7 @@ PairingHeap<T>::~PairingHeap() {
 
 // Helper function: meld two heaps (returns root of merged heap)
 template <typename T>
-Node<T>* PairingHeap<T>::meld(Node<T>* heap1, Node<T>* heap2) {
+Node<T>* pairing_heap<T>::meld(Node<T>* heap1, Node<T>* heap2) {
     if (!heap1) return heap2;
     if (!heap2) return heap1;
     
@@ -33,7 +33,7 @@ Node<T>* PairingHeap<T>::meld(Node<T>* heap1, Node<T>* heap2) {
 
 // Helper function: merge all siblings using the pairing strategy
 template <typename T>
-Node<T>* PairingHeap<T>::mergeSiblings(Node<T>* sibling) {
+Node<T>* pairing_heap<T>::mergeSiblings(Node<T>* sibling) {
     if (!sibling) return nullptr;
     if (!sibling->sibling) return sibling;
     
@@ -57,7 +57,7 @@ Node<T>* PairingHeap<T>::mergeSiblings(Node<T>* sibling) {
 
 // Helper function: recursively delete all nodes in a tree
 template <typename T>
-void PairingHeap<T>::deleteTree(Node<T>* node) {
+void pairing_heap<T>::deleteTree(Node<T>* node) {
     if (!node) return;
     
     // Delete all children
@@ -73,7 +73,7 @@ void PairingHeap<T>::deleteTree(Node<T>* node) {
 
 // Helper function: find a node with given value
 template <typename T>
-Node<T>* PairingHeap<T>::findNode(Node<T>* node, T value) {
+Node<T>* pairing_heap<T>::findNode(Node<T>* node, T value) {
     if (!node) return nullptr;
     
     if (node->value == value) return node;
@@ -90,7 +90,7 @@ Node<T>* PairingHeap<T>::findNode(Node<T>* node, T value) {
 }
 
 template <typename T>
-void PairingHeap<T>::insert(T value, int key) {
+void pairing_heap<T>::insert(T value, int key) {
     Node<T>* newNode = new Node<T>(value, key);
     
     if (!root) {
@@ -103,7 +103,7 @@ void PairingHeap<T>::insert(T value, int key) {
 }
 
 template <typename T>
-void PairingHeap<T>::extract_max() {
+void pairing_heap<T>::extract_max() {
     if (!root) {
         throw std::runtime_error("Cannot extract from empty heap");
     }
@@ -134,7 +134,7 @@ void PairingHeap<T>::extract_max() {
 
 // Helper function: merge pairs of siblings
 template <typename T>
-Node<T>* PairingHeap<T>::mergePairs(Node<T>* head) {
+Node<T>* pairing_heap<T>::mergePairs(Node<T>* head) {
     if (!head) return nullptr;
     if (!head->sibling) {
         head->sibling = nullptr;
@@ -158,7 +158,7 @@ Node<T>* PairingHeap<T>::mergePairs(Node<T>* head) {
 }
 
 template <typename T>
-T PairingHeap<T>::peek() {
+T pairing_heap<T>::peek() {
     if (!root) {
         throw std::runtime_error("Cannot peek at empty heap");
     }
@@ -167,7 +167,7 @@ T PairingHeap<T>::peek() {
 
 // Helper function: find and disconnect a node from its parent
 template <typename T>
-bool PairingHeap<T>::disconnectNode(Node<T>*& node, T value) {
+bool pairing_heap<T>::disconnectNode(Node<T>*& node, T value) {
     if (!node) return false;
     
     // Check children
@@ -200,7 +200,7 @@ bool PairingHeap<T>::disconnectNode(Node<T>*& node, T value) {
 }
 
 template <typename T>
-void PairingHeap<T>::modify_key(T value, int new_key) {
+void pairing_heap<T>::modify_key(T value, int new_key) {
     Node<T>* node = findNode(root, value);
     
     if (!node) {
@@ -235,12 +235,12 @@ void PairingHeap<T>::modify_key(T value, int new_key) {
 }
 
 template <typename T>
-int PairingHeap<T>::return_size() {
+int pairing_heap<T>::return_size() {
     return _size;
 }
 
 template <typename T>
-void PairingHeap<T>::display() {
+void pairing_heap<T>::display() {
     if(!root) {
         std::cout << "Heap is empty." << std::endl;
         return;
@@ -256,6 +256,6 @@ void PairingHeap<T>::display() {
 }
 
 // Explicit template instantiations
-template class PairingHeap<int>;
-template class PairingHeap<double>;
-template class PairingHeap<std::string>;
+template class pairing_heap<int>;
+template class pairing_heap<double>;
+template class pairing_heap<std::string>;

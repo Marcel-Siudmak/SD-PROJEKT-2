@@ -11,4 +11,5 @@ public:
     virtual void modify_key(T value, int new_key) = 0;
     virtual int return_size() = 0;
     virtual void display() = 0;
+    virtual void clear() = 0;
 };

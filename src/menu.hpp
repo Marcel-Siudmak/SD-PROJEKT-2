@@ -1,20 +1,19 @@
 #pragma once
 #include "benchmark.hpp"
 #include "data_handler.hpp"
-#include "doubly_linked_list.hpp"
-#include "singly_linked_list.hpp"
-#include "array_list.hpp"
+#include "IIList.hpp"
+#include "pairing_heap.hpp"
 #include <iostream>
 
 class menu{
 private:
-    IList<int>* _type;
+    IIList<int>* _type;
     std::string _dataset_name, _list_type;
     std::vector<int> _points;
     int _num_files;
     unsigned int _main_seed;
 public:
-    menu() : _type(nullptr), _dataset_name("benchmark_test_dataset"), _list_type("singly_linked_list"), _points({1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000}), _num_files(100), _main_seed(42) {};
+    menu() : _type(nullptr), _dataset_name("benchmark_test_dataset"), _list_type("pairing_heap"), _points({1000, 2000, 4000, 8000, 16000, 32000, 64000, 128000, 256000, 512000}), _num_files(100), _main_seed(42) {};
     void display_menu(){
         std::cout << "1. Choose List Type:\n";
         std::cout << "2. Choose dataset.\n";
@@ -27,27 +26,17 @@ public:
     void choose_list_type(){
         int choice;
         std::cout << "Choose List Type:\n";
-        std::cout << "1. Singly Linked List\n";
-        std::cout << "2. Doubly Linked List\n";
-        std::cout << "3. Array List\n";
+        std::cout << "1. Pairing heap\n";
         std::cin >> choice;
         switch (choice) {
             case 1:
-                _type = new singly_linked_list<int>();
-                _list_type = "singly_linked_list";
-                break;
-            case 2:
-                _type = new doubly_linked_list<int>();
-                _list_type = "doubly_linked_list";
-                break;
-            case 3:
-                _type = new array_list<int>();
-                _list_type = "array_list";
+                _type = new pairing_heap<int>();
+                _list_type = "pairing_heap";
                 break;
             default:
                 std::cout << "Invalid choice. Defaulting to Singly Linked List.\n";
-                _type = new singly_linked_list<int>();
-                _list_type = "singly_linked_list";
+                _type = new pairing_heap<int>();
+                _list_type = "pairing_heap";
         }
     }
     void generate_dataset(){
@@ -61,16 +50,13 @@ public:
             << "'...\n";
         benchmark bench(_dataset_name);
         std::cout << "\nRunning Tests for " << _dataset_name <<" "<< _list_type <<"...\n";
-        if(_list_type == "singly_linked_list"){
-            bench.run_structure_tests<singly_linked_list<int>>(
-                "singly_linked_list", []() { return new singly_linked_list<int>(); });
-        } else if(_list_type == "doubly_linked_list"){
-            bench.run_structure_tests<doubly_linked_list<int>>(
-                "doubly_linked_list", []() { return new doubly_linked_list<int>(); });
-        } else if(_list_type == "array_list"){
-            bench.run_structure_tests<array_list<int>>(
-                "array_list", []() { return new array_list<int>(); });
-        }
+        if(_list_type == "pairing_heap"){
+            bench.run_structure_tests<pairing_heap<int>>(
+                "pairing_heap", []() { return new pairing_heap<int>(); });
+            }
+        // else if(_list_type == "doubly_linked_list"){
+        //     bench.run_structure_tests<doubly_linked_list<int>>(
+        //         "doubly_linked_list", []() { return new doubly_linked_list<int>(); });
         std::cout<< "\nBenchmarks finished successfully. Results saved to results/"<< _dataset_name << "/\n";
     }
     void parameters(){
@@ -196,4 +182,5 @@ public:
             }
         }
     }
+}
 };

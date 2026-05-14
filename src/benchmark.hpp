@@ -52,7 +52,7 @@ public:
       results["peek"][n] = measure_operation(instances, [](IIList<int> *list) {list->peek();});
 
       // 2. extract_max()
-      results["extract_max"][n] = measure_operation(instances, [](IIList<int> *list) {list->extract_max();})
+      results["extract_max"][n] = measure_operation(instances, [](IIList<int> *list) {list->extract_max();});
 
       for (size_t i = 0; i < num_instances; ++i) {
         dataset_.load_to_list(test_files[i], n, *instances[i]);
@@ -68,12 +68,13 @@ public:
           instances, file_seeds, n,
           [](IIList<int> *list, int idx, int /*n*/) {
             list->insert(1000000, idx);
-          });
+          }, true);
       // 4. modify_key()
       results["modify_key"][n] = measure_operation_with_seeds(instances, file_seeds, n,
           [](IIList<int> *list, int idx, int /*n*/) {
             list->modify_key(1000000, idx);
-          });
+          }, false);
+
       // ---------------------------------------------------------------
       // 1. push_front
       // ---------------------------------------------------------------

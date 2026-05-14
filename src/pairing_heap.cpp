@@ -1,5 +1,8 @@
 #include "pairing_heap.hpp"
+#include <functional>
+#include <iostream>
 #include <stdexcept>
+#include <string>
 
 template <typename T>
 pairing_heap<T>::pairing_heap() : root(nullptr), _size(0) {}
@@ -76,7 +79,7 @@ template <typename T>
 Node<T>* pairing_heap<T>::findNode(Node<T>* node, T value) {
     if (!node) return nullptr;
     
-    if (node->value == value) return node;
+    if (node->_value == value) return node;
     
     // Search in children
     Node<T>* child = node->child;
@@ -162,7 +165,7 @@ T pairing_heap<T>::peek() {
     if (!root) {
         throw std::runtime_error("Cannot peek at empty heap");
     }
-    return root->value;
+    return root->_value;
 }
 
 // Helper function: find and disconnect a node from its parent
@@ -253,6 +256,13 @@ void pairing_heap<T>::display() {
         displayHelper(node->sibling, level);
     };
     displayHelper(root, 0);
+}
+
+template <typename T>
+void pairing_heap<T>::clear() {
+    deleteTree(root);
+    root  = nullptr;
+    _size = 0;
 }
 
 // Explicit template instantiations

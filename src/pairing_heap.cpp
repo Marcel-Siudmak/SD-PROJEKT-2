@@ -1,5 +1,8 @@
 #include "pairing_heap.hpp"
 #include <stdexcept>
+#include <functional>
+#include <iostream>
+#include <string>
 
 template <typename T>
 pairing_heap<T>::pairing_heap() : root(nullptr), _size(0) {}
@@ -16,9 +19,9 @@ template <typename T>
 Node<T>* pairing_heap<T>::meld(Node<T>* heap1, Node<T>* heap2) {
     if (!heap1) return heap2;
     if (!heap2) return heap1;
-    
+
     // Max heap: larger key becomes the root
-    if (!(heap1 < heap2)) {
+    if (heap1->_key > heap2->_key) {
         // heap1 becomes parent, heap2 becomes its child
         heap2->sibling = heap1->child;
         heap1->child = heap2;
@@ -76,7 +79,7 @@ template <typename T>
 Node<T>* pairing_heap<T>::findNode(Node<T>* node, T value) {
     if (!node) return nullptr;
     
-    if (node->value == value) return node;
+    if (node->_value == value) return node;
     
     // Search in children
     Node<T>* child = node->child;
@@ -103,36 +106,30 @@ void pairing_heap<T>::insert(T value, int key) {
 }
 
 template <typename T>
-void pairing_heap<T>::extract_max() {
+T pairing_heap<T>::extract_max() {
     if (!root) {
+        std::cout<< "Cannot extract from empty heap." << std::endl;
         throw std::runtime_error("Cannot extract from empty heap");
     }
-    
+    T val = root->_value;
     Node<T>* oldRoot = root;
-    
+    // std::cout << "Extracting max: " << val << std::endl;
     // Get the first child
     Node<T>* firstChild = root->child;
-    
+
     if (firstChild) {
-        // Merge all children using pairing strategy
-        // First, collect all siblings and reset them
-        Node<T>* current = firstChild;
-        while (current) {
-            current->sibling = current->sibling;
-            current = current->sibling;
-        }
-        
-        // Merge siblings in pairs from left to right, then merge results
         root = mergePairs(firstChild);
+        // std::cout << "Merged children of old root.\n";
     } else {
         root = nullptr;
     }
-    
+    // std::cout << "Extracted max: " << val << std::endl;
     delete oldRoot;
     _size--;
+    return val;
 }
 
-// Helper function: merge pairs of siblings
+// Helper function: merge pairs of siblings iteratively (no vector needed)
 template <typename T>
 Node<T>* pairing_heap<T>::mergePairs(Node<T>* head) {
     if (!head) return nullptr;
@@ -141,20 +138,60 @@ Node<T>* pairing_heap<T>::mergePairs(Node<T>* head) {
         return head;
     }
     
-    Node<T>* first = head;
-    Node<T>* second = head->sibling;
-    Node<T>* rest = second->sibling;
+    // Two-pass algorithm for O(log n) amortized time:
+    // Pass 1: Pair up consecutive children from left to right
+    Node<T>* pass1 = nullptr;
+    Node<T>* last = nullptr;
+    Node<T>* current = head;
     
-    first->sibling = nullptr;
-    second->sibling = nullptr;
-    
-    Node<T>* merged = meld(first, second);
-    
-    if (rest) {
-        return meld(merged, mergePairs(rest));
+    while (current) {
+        Node<T>* first = current;
+        Node<T>* second = current->sibling;
+        
+        Node<T>* merged;
+        if (second) {
+            current = second->sibling;
+            first->sibling = nullptr;
+            second->sibling = nullptr;
+            merged = meld(first, second);
+        } else {
+            current = nullptr;
+            first->sibling = nullptr;
+            merged = first;
+        }
+        
+        // Add to pass1 list
+        if (!pass1) {
+            pass1 = merged;
+            last = merged;
+        } else {
+            last->sibling = merged;
+            last = merged;
+        }
     }
     
-    return merged;
+    // Pass 2: Merge from right to left using reverse iteration
+    // Reverse the list first
+    Node<T>* reversed = nullptr;
+    current = pass1;
+    while (current) {
+        Node<T>* next = current->sibling;
+        current->sibling = reversed;
+        reversed = current;
+        current = next;
+    }
+    
+    // Now merge from left (which is rightmost of original) to right
+    Node<T>* result = nullptr;
+    current = reversed;
+    while (current) {
+        Node<T>* next = current->sibling;
+        current->sibling = nullptr;
+        result = (result == nullptr) ? current : meld(current, result);
+        current = next;
+    }
+    
+    return result;
 }
 
 template <typename T>
@@ -162,7 +199,7 @@ T pairing_heap<T>::peek() {
     if (!root) {
         throw std::runtime_error("Cannot peek at empty heap");
     }
-    return root->value;
+    return root->_value;
 }
 
 // Helper function: find and disconnect a node from its parent
@@ -215,14 +252,13 @@ void pairing_heap<T>::modify_key(T value, int new_key) {
         return;
     }
     
-    // For non-root nodes: cut and re-meld
-    // First, save the node's children
+    // NAJPIERW odłącz węzeł od drzewa, szukając go od KORZENIA
+    disconnectNode(root, value);
+    
+    // POTEM zapisz dzieci modyfikowanego węzła i wyczyść jego wskaźniki
     Node<T>* children = node->child;
     node->child = nullptr;
     node->sibling = nullptr;
-    
-    // Disconnect the node from its parent
-    disconnectNode(node, value);
     
     // Merge the node's children
     if (children) {
@@ -254,8 +290,12 @@ void pairing_heap<T>::display() {
     };
     displayHelper(root, 0);
 }
+template <typename T>
+void pairing_heap<T>::clear() {
+    deleteTree(root);
+    root = nullptr;
+    _size = 0;
+}
 
 // Explicit template instantiations
 template class pairing_heap<int>;
-template class pairing_heap<double>;
-template class pairing_heap<std::string>;

@@ -49,16 +49,19 @@ public:
       }
 
       // 1. peek()
+      std::cout << "Measuring peek()...\n";
       results["peek"][n] = measure_operation(instances, [](IIList<int> *list) {list->peek();});
 
       // 2. extract_max()
-      results["extract_max"][n] = measure_operation(instances, [](IIList<int> *list) {list->extract_max();})
+      std::cout << "Measuring extract_max()...\n";
+      results["extract_max"][n] = measure_operation(instances, [](IIList<int> *list) {list->extract_max();});
 
       for (size_t i = 0; i < num_instances; ++i) {
         dataset_.load_to_list(test_files[i], n, *instances[i]);
       }
 
       // 3. insert()
+      std::cout << "Measuring insert() with random index...\n";
               // Wstaw unikalną wartość na losowy indeks (poza pomiarem)
         for (size_t i = 0; i < num_instances; ++i) {
         dataset_.load_to_list(test_files[i], n, *instances[i]);
@@ -68,12 +71,15 @@ public:
           instances, file_seeds, n,
           [](IIList<int> *list, int idx, int /*n*/) {
             list->insert(1000000, idx);
-          });
+          }, true);
+
+      
       // 4. modify_key()
+      std::cout << "Measuring modify_key() with random index...\n";
       results["modify_key"][n] = measure_operation_with_seeds(instances, file_seeds, n,
           [](IIList<int> *list, int idx, int /*n*/) {
             list->modify_key(1000000, idx);
-          });
+          }, true);
       // ---------------------------------------------------------------
       // 1. push_front
       // ---------------------------------------------------------------

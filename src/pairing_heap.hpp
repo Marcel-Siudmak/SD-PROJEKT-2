@@ -9,7 +9,7 @@ template <typename T> struct Node {
 
   Node(T value, int key) : _value(value), _key(key), child(nullptr), sibling(nullptr) {}
 
-  operator<(Node<T> &other) const {
+  bool operator<(const Node<T> &other) const {
     return _key < other._key;
   }
 };
@@ -32,10 +32,10 @@ public:
   ~pairing_heap();
 
   void insert(T value, int key) override;
-  void extract_max() override;
+  T extract_max() override;
   T peek() override;
   void modify_key(T value, int new_key) override;
   int return_size() override;
   void display() override;
-
+  void clear() override;
 };

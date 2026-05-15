@@ -92,7 +92,7 @@ T pairing_heap<T>::extract_max() {
     // std::cout << "Extracting max: " << val << std::endl;
     // Get the first child
     Node<T>* firstChild = root->child;
-
+    // std::cout<<count_root_children()<<"\n";
     if (firstChild) {
         root = twoPassMerge(firstChild);
         // std::cout << "Merged children of old root.\n";

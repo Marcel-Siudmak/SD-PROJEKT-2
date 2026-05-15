@@ -22,7 +22,7 @@ using BenchmarkResults = std::map<std::string, std::map<int, double>>;
 //  Większa wartość → dokładniejszy pomiar dla krótkich operacji
 //  (np. peek, extract_max) kosztem pamięci.
 // ============================================================
-static constexpr int NUM_COPIES = 100;
+static constexpr int NUM_COPIES = 1;
 
 // Zakres kluczy/priorytetów używanych przy generowaniu danych
 // (zgodny z data_handler – klucze ∈ [1, 999'999])
@@ -98,7 +98,6 @@ public:
         // --------------------------------------------------------
         {
           auto copies = make_copies(list_factory, file, n, NUM_COPIES);
-
           auto t0 = std::chrono::high_resolution_clock::now();
           for (auto *inst : copies) inst->peek();
           auto t1 = std::chrono::high_resolution_clock::now();

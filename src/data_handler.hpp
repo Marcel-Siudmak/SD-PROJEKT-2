@@ -1,7 +1,7 @@
 #pragma once
 
 #include "IIList.hpp"
-#include "pairing_heap.hpp"
+#include "priority_q.hpp"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -40,7 +40,7 @@ public:
     }
 
     list.clear();
-    if (IIList<T>* pairingHeap = dynamic_cast<IIList<T>*>(&list)) {
+    if (IIList<T>* pq_heap = dynamic_cast<IIList<T>*>(&list)) {
       // std::cout << "Loading to pairing heap\n";
       int seed = get_file_seed(test_file);
       std::mt19937 rng(seed);

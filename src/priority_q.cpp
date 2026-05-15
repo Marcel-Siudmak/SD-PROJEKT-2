@@ -6,38 +6,48 @@
 //  pq_heap – delegacja do pairing_heap<T>
 // ============================================================
 
-template <typename T> void pq_heap<T>::insert(T value, int key) {
+template <typename T> 
+void pq_heap<T>::insert(T value, int key) {
   heap_.insert(value, key);
 }
 
-template <typename T> T pq_heap<T>::extract_max() {
+template <typename T> 
+T pq_heap<T>::extract_max() {
   return heap_.extract_max();
 }
 
-template <typename T> T pq_heap<T>::peek() { return heap_.peek(); }
+template <typename T> 
+T pq_heap<T>::peek() { return heap_.peek(); }
 
-template <typename T> void pq_heap<T>::modify_key(T value, int new_key) {
+template <typename T> 
+void pq_heap<T>::modify_key(T value, int new_key) {
   heap_.modify_key(value, new_key);
 }
 
-template <typename T> int pq_heap<T>::return_size() {
+template <typename T> 
+int pq_heap<T>::return_size() {
   return heap_.return_size();
 }
 
-template <typename T> void pq_heap<T>::display() { heap_.display(); }
+template <typename T> 
+void pq_heap<T>::display() { heap_.display(); }
 
-template <typename T> void pq_heap<T>::clear() { heap_.clear(); }
+template <typename T> 
+void pq_heap<T>::clear() { heap_.clear(); }
 
 // ============================================================
 //  pq_list – posortowana jednokierunkowa lista (malejąco)
 // ============================================================
 
-template <typename T> pq_list<T>::pq_list() : head_(nullptr), size_(0) {}
+template <typename T> 
+pq_list<T>::pq_list() : head_(nullptr), size_(0) {}
 
-template <typename T> pq_list<T>::~pq_list() { clear(); }
+template <typename T> 
+pq_list<T>::~pq_list() { clear(); }
 
 // Wstawia węzeł we właściwe miejsce listy posortowanej malejąco
-template <typename T> void pq_list<T>::insert_sorted(pq_node<T> *node) {
+template <typename T> 
+void pq_list<T>::insert_sorted(pq_node<T> *node) {
   // Wstaw przed pierwszym węzłem o kluczu <= node->key
   if (!head_ || node->key >= head_->key) {
     node->next = head_;
@@ -53,13 +63,15 @@ template <typename T> void pq_list<T>::insert_sorted(pq_node<T> *node) {
   cur->next = node;
 }
 
-template <typename T> void pq_list<T>::insert(T value, int key) {
+template <typename T> 
+void pq_list<T>::insert(T value, int key) {
   pq_node<T> *node = new pq_node<T>(value, key);
   insert_sorted(node);
   ++size_;
 }
 
-template <typename T> T pq_list<T>::extract_max() {
+template <typename T> 
+T pq_list<T>::extract_max() {
   if (!head_) {
     throw std::runtime_error("extract_max: kolejka jest pusta");
   }
@@ -71,14 +83,16 @@ template <typename T> T pq_list<T>::extract_max() {
   return val;
 }
 
-template <typename T> T pq_list<T>::peek() {
+template <typename T> 
+T pq_list<T>::peek() {
   if (!head_) {
     throw std::runtime_error("peek: kolejka jest pusta");
   }
   return head_->value;
 }
 
-template <typename T> void pq_list<T>::modify_key(T value, int new_key) {
+template <typename T> 
+void pq_list<T>::modify_key(T value, int new_key) {
   // Znajdź węzeł z podaną wartością, usuń go z listy,
   // zaktualizuj klucz i wstaw z powrotem w posortowanej pozycji.
   pq_node<T> *cur = head_;
@@ -104,9 +118,11 @@ template <typename T> void pq_list<T>::modify_key(T value, int new_key) {
   throw std::runtime_error("modify_key: wartość nie została znaleziona");
 }
 
-template <typename T> int pq_list<T>::return_size() { return size_; }
+template <typename T> 
+int pq_list<T>::return_size() { return size_; }
 
-template <typename T> void pq_list<T>::display() {
+template <typename T> 
+void pq_list<T>::display() {
   if (!head_) {
     std::cout << "Kolejka jest pusta.\n";
     return;
@@ -119,7 +135,8 @@ template <typename T> void pq_list<T>::display() {
   }
 }
 
-template <typename T> void pq_list<T>::clear() {
+template <typename T> 
+void pq_list<T>::clear() {
   while (head_) {
     pq_node<T> *tmp = head_;
     head_ = head_->next;

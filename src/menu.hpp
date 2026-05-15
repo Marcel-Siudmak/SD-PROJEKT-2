@@ -2,7 +2,6 @@
 #include "benchmark.hpp"
 #include "data_handler.hpp"
 #include "IIList.hpp"
-#include "pairing_heap.hpp"
 #include "priority_q.hpp"
 #include <iostream>
 

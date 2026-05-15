@@ -297,14 +297,8 @@ void pairing_heap<T>::clear() {
     _size = 0;
 }
 
-template <typename T>
-void pairing_heap<T>::clear() {
-    deleteTree(root);
-    root  = nullptr;
-    _size = 0;
-}
-
 // Explicit template instantiations
 template class pairing_heap<int>;
 template class pairing_heap<double>;
 template class pairing_heap<std::string>;
+

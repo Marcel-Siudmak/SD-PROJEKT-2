@@ -25,7 +25,7 @@ public:
     pq_heap& operator=(pq_heap&&) = default;
 
     void insert(T value, int key) override;
-    void extract_max() override;
+    T    extract_max() override;
     T    peek() override;
     void modify_key(T value, int new_key) override;
     int  return_size() override;
@@ -72,7 +72,7 @@ public:
     pq_list& operator=(pq_list&&) = default;
 
     void insert(T value, int key) override;
-    void extract_max() override;
+    T    extract_max() override;
     T    peek() override;
     void modify_key(T value, int new_key) override;
     int  return_size() override;

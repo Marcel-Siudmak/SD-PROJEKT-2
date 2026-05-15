@@ -1,10 +1,14 @@
 #pragma once
 
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <functional>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <random>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -13,8 +17,38 @@
 
 using BenchmarkResults = std::map<std::string, std::map<int, double>>;
 
+// ============================================================
+//  Liczba kopii struktury tworzonych dla każdego seeda.
+//  Większa wartość → dokładniejszy pomiar dla krótkich operacji
+//  (np. peek, extract_max) kosztem pamięci.
+// ============================================================
+static constexpr int NUM_COPIES = 100;
+
+// Zakres kluczy/priorytetów używanych przy generowaniu danych
+// (zgodny z data_handler – klucze ∈ [1, 999'999])
+static constexpr int KEY_MIN = 1;
+static constexpr int KEY_MAX = 999'999;
+
+// ============================================================
+//  Eksport wyników – zapis przyrostowy (linia po linii),
+//  dzięki czemu przerwanie benchmarku nie traci danych.
+//
+//  Format CSV:
+//    operacja;n;czas_ns
+//  Nagłówek jest zapisywany tylko raz (przy pierwszym otwarciu).
+// ============================================================
 class result_exporter {
 public:
+  // Otwiera (lub tworzy) plik CSV i zapisuje nagłówek, jeśli plik był pusty.
+  // Zwraca otwarty strumień; wywołujący odpowiada za jego zamknięcie.
+  static std::ofstream open_csv(const std::string &dataset_name,
+                                const std::string &structure_name);
+
+  // Dopisuje jeden wiersz wyników do już otwartego strumienia.
+  static void append_row(std::ofstream &file, const std::string &operation,
+                         int n, double time_ns);
+
+  // Zachowana dla zgodności wstecznej – zapisuje całą mapę wyników naraz.
   static void export_to_csv(const BenchmarkResults &results,
                             const std::string &dataset_name,
                             const std::string &structure_name);
@@ -24,200 +58,248 @@ class benchmark {
 public:
   explicit benchmark(const std::string &dataset_name);
 
+  // ============================================================
+  //  Główna metoda uruchamiająca testy dla jednej struktury.
+  //  ListType     – konkretny typ (np. pq_heap<int>)
+  //  list_factory – lambda tworząca pustą instancję
+  // ============================================================
   template <typename ListType>
   void run_structure_tests(const std::string &structure_name,
                            std::function<ListType *()> list_factory) {
-    BenchmarkResults results;
+
+    // Otwórz plik CSV raz przed pętlą – wyniki trafiają do pliku
+    // natychmiast po każdym zmierzonym punkcie.
+    std::ofstream csv = result_exporter::open_csv(dataset_.get_name(),
+                                                   structure_name);
 
     for (int n : dataset_.get_points()) {
       std::cout << "\n--- Testing " << structure_name << " for N=" << n
                 << " ---\n";
 
       const auto &test_files = dataset_.get_test_files();
-      size_t num_instances = test_files.size();
+      const size_t num_seeds = test_files.size();
 
-      // ---------------------------------------------------------------
-      // Buduj instancje i zapamiętaj seed każdego pliku
-      // ---------------------------------------------------------------
-      std::vector<IIList<int> *> instances(num_instances);
-      std::vector<unsigned int> file_seeds(num_instances);
+      // ----------------------------------------------------------
+      // Bufory na wyniki cząstkowe (jeden pomiar na seed)
+      // ----------------------------------------------------------
+      std::vector<double> peek_times(num_seeds);
+      std::vector<double> extract_times(num_seeds);
+      std::vector<double> insert_times(num_seeds);
+      std::vector<double> modify_times(num_seeds);
 
-      for (size_t i = 0; i < num_instances; ++i) {
-        instances[i] = list_factory();
-        dataset_.load_to_list(test_files[i], n, *instances[i]);
-        file_seeds[i] = dataset_.get_file_seed(test_files[i]);
-      }
+      for (size_t s = 0; s < num_seeds; ++s) {
+        const std::string &file = test_files[s];
+        const unsigned int seed = dataset_.get_file_seed(file);
 
-      // 1. peek()
-      std::cout << "Measuring peek()...\n";
-      results["peek"][n] = measure_operation(instances, [](IIList<int> *list) {list->peek();});
+        // --------------------------------------------------------
+        // 1. peek() – operacja tylko-do-odczytu, nie zmienia stanu.
+        //    Tworzymy NUM_COPIES identycznych kopii, mierzymy czas
+        //    wykonania peek() na wszystkich łącznie, dzielimy / x.
+        // --------------------------------------------------------
+        {
+          auto copies = make_copies(list_factory, file, n, NUM_COPIES);
 
-      // 2. extract_max()
-      results["extract_max"][n] = measure_operation(instances, [](IIList<int> *list) {list->extract_max();});
+          auto t0 = std::chrono::high_resolution_clock::now();
+          for (auto *inst : copies) inst->peek();
+          auto t1 = std::chrono::high_resolution_clock::now();
 
-      for (size_t i = 0; i < num_instances; ++i) {
-        dataset_.load_to_list(test_files[i], n, *instances[i]);
-      }
-
-      // 3. insert()
-      std::cout << "Measuring insert() with random index...\n";
-              // Wstaw unikalną wartość na losowy indeks (poza pomiarem)
-        for (size_t i = 0; i < num_instances; ++i) {
-        dataset_.load_to_list(test_files[i], n, *instances[i]);
+          peek_times[s] = ns(t0, t1) / NUM_COPIES;
+          free_copies(copies);
         }
 
-      results["insert_random"][n] = measure_operation_with_seeds(
-          instances, file_seeds, n,
-          [](IIList<int> *list, int idx, int /*n*/) {
-            list->insert(1000000, idx);
-          }, true);
-      // 4. modify_key()
-      std::cout << "Measuring modify_key() with random index...\n";
-      results["modify_key"][n] = measure_operation_with_seeds(instances, file_seeds, n,
-          [](IIList<int> *list, int idx, int /*n*/) {
-            list->modify_key(1000000, idx);
-          }, false);
+        // --------------------------------------------------------
+        // 2. extract_max() – modyfikuje strukturę; każda kopia
+        //    startuje z pełnym zestawem n elementów.
+        // --------------------------------------------------------
+        {
+          auto copies = make_copies(list_factory, file, n, NUM_COPIES);
 
-      // ---------------------------------------------------------------
-      // 1. push_front
-      // ---------------------------------------------------------------
-      // results["push_front"][n] = measure_operation(
-      //     instances, [](IList<int> *list) { list->push_front(999); });
+          auto t0 = std::chrono::high_resolution_clock::now();
+          for (auto *inst : copies) inst->extract_max();
+          auto t1 = std::chrono::high_resolution_clock::now();
 
-      // ---------------------------------------------------------------
-      // 2. push_back
-      // ---------------------------------------------------------------
-      // results["push_back"][n] = measure_operation(
-      //     instances, [](IList<int> *list) { list->push_back(999); });
+          extract_times[s] = ns(t0, t1) / NUM_COPIES;
+          free_copies(copies);
+        }
 
-      // ---------------------------------------------------------------
-      // 3. pop_front
-      // ---------------------------------------------------------------
-      // results["pop_front"][n] = measure_operation(
-      //     instances, [](IList<int> *list) { list->pop_front(); });
+        // --------------------------------------------------------
+        // 3. insert() – wstawiamy element z deterministycznie
+        //    wylosowanym priorytetem (kluczem).
+        //    RNG seed = file_seed → pełna odtwarzalność.
+        // --------------------------------------------------------
+        {
+          std::mt19937 rng(seed);
+          std::uniform_int_distribution<int> key_dist(KEY_MIN, KEY_MAX);
+          std::vector<int> insert_keys(NUM_COPIES);
+          for (int &k : insert_keys) k = key_dist(rng);
 
-      // // ---------------------------------------------------------------
-      // 4. pop_back
-      // ---------------------------------------------------------------
-      // results["pop_back"][n] = measure_operation(
-      //     instances, [](IList<int> *list) { list->pop_back(); });
+          constexpr int INSERT_VALUE = 1'000'000;
+          auto copies = make_copies(list_factory, file, n, NUM_COPIES);
 
-      // ---------------------------------------------------------------
-      // 5. insert na losowym indeksie
-      //    Używamy tego samego file_seed co dane — pełna odtwarzalność.
-      //    Po pop_front/pop_back lista ma n-1 elementów, więc
-      //    przeładowujemy świeże instancje przed każdą nową operacją.
-      // ---------------------------------------------------------------
+          auto t0 = std::chrono::high_resolution_clock::now();
+          for (size_t c = 0; c < copies.size(); ++c)
+            copies[c]->insert(INSERT_VALUE, insert_keys[c]);
+          auto t1 = std::chrono::high_resolution_clock::now();
 
-      // Przeładuj instancje (pop_front/pop_back zmodyfikowały listy)
-      // for (size_t i = 0; i < num_instances; ++i) {
-      //   dataset_.load_to_list(test_files[i], n, *instances[i]);
-      // }
+          insert_times[s] = ns(t0, t1) / NUM_COPIES;
+          free_copies(copies);
+        }
 
-      // results["insert_random"][n] = measure_operation_with_seeds(
-      //     instances, file_seeds, n,
-      //     [](IList<int> *list, int idx, int /*n*/) {
-      //       list->insert(999, idx);
-      //     },
-      //     /* index_range_is_n_plus_one = */ true); // indeks ∈ [0, n]
+        // --------------------------------------------------------
+        // 4. modify_key(e, p)
+        //
+        //    e – element do modyfikacji: losowany deterministycznie
+        //        spośród wartości faktycznie istniejących w danych
+        //        (strumień RNG: mt19937(seed ^ 0xCAFEBABEu)).
+        //
+        //    p – nowy priorytet: losowany deterministycznie z innego
+        //        strumienia (mt19937(seed ^ 0xDEADBEEFu)).
+        //
+        //    Oba losowania są niezależne i w pełni odtwarzalne
+        //    dla każdego seeda.
+        // --------------------------------------------------------
+        {
+          // Wczytaj pary (klucz, wartość) z pliku, żeby znać
+          // jakie wartości faktycznie znajdują się w strukturze.
+          auto pairs = load_pairs(file, n);  // vector<pair<int,int>>
 
-      // ---------------------------------------------------------------
-      // 6. remove na losowym indeksie
-      // ---------------------------------------------------------------
-      // for (size_t i = 0; i < num_instances; ++i) {
-      //   dataset_.load_to_list(test_files[i], n, *instances[i]);
-      // }
+          // Strumień RNG do losowania elementu e
+          std::mt19937 rng_e(seed ^ 0xCAFEBABEu);
+          std::uniform_int_distribution<int> elem_dist(0,
+                                                       static_cast<int>(pairs.size()) - 1);
 
-      // results["remove_random"][n] = measure_operation_with_seeds(
-      //     instances, file_seeds, n,
-      //     [](IList<int> *list, int idx, int /*n*/) {
-      //       list->remove(idx);
-      //     },
-       //   /* index_range_is_n_plus_one = */ false); // indeks ∈ [0, n-1]
+          // Strumień RNG do losowania nowego klucza p
+          std::mt19937 rng_p(seed ^ 0xDEADBEEFu);
+          std::uniform_int_distribution<int> key_dist(KEY_MIN, KEY_MAX);
 
-      // ---------------------------------------------------------------
-      // 7. find — szukamy wartości 1'000'000 wstawionej deterministycznie.
-      //
-      //    Przygotowanie per-instancja (NIE mierzymy tego czasu):
-      //      a) wylosuj find_idx ∈ [0, n-1] z file_seed
-      //      b) usuń element na find_idx
-      //      c) wstaw 1'000'000 na find_idx
-      //    Ponieważ dane są z [1, 999'999], wartość 1'000'000 jest unikalna.
-      // ---------------------------------------------------------------
-      // for (size_t i = 0; i < num_instances; ++i) {
-      //   dataset_.load_to_list(test_files[i], n, *instances[i]);
+          // Wylosuj NUM_COPIES par (e, p) deterministycznie
+          std::vector<int> elems(NUM_COPIES);
+          std::vector<int> new_keys(NUM_COPIES);
+          for (int c = 0; c < NUM_COPIES; ++c) {
+            elems[c]   = pairs[elem_dist(rng_e)].second; // wartość elementu e
+            new_keys[c] = key_dist(rng_p);               // nowy priorytet p
+          }
 
-      //   // Wstaw unikalną wartość na losowy indeks (poza pomiarem)
-      //   std::mt19937 rng(file_seeds[i]);
-      //   std::uniform_int_distribution<int> idx_dist(0, n - 1);
-      //   int find_idx = idx_dist(rng);
-      //   instances[i]->remove(find_idx);
-      //   instances[i]->insert(1'000'000, find_idx);
-      // }
+          // Przygotowanie kopii – elementy e już są w strukturze
+          // (pochodzą z danych), nie trzeba nic dokładać poza pomiarem.
+          auto copies = make_copies(list_factory, file, n, NUM_COPIES);
 
-      // results["find"][n] = measure_operation(
-      //     instances, [](IList<int> *list) { list->find(1'000'000); });
+          auto t0 = std::chrono::high_resolution_clock::now();
+          for (size_t c = 0; c < copies.size(); ++c)
+            copies[c]->modify_key(elems[c], new_keys[c]);
+          auto t1 = std::chrono::high_resolution_clock::now();
 
-      // ---------------------------------------------------------------
-      // Zwolnij pamięć
-      // ---------------------------------------------------------------
-      for (auto ptr : instances) {
-        delete ptr;
-      }
-    }
+          modify_times[s] = ns(t0, t1) / NUM_COPIES;
+          free_copies(copies);
+        }
 
-    result_exporter::export_to_csv(results, dataset_.get_name(),
-                                   structure_name);
+      } // koniec pętli po seedach
+
+      // ----------------------------------------------------------
+      // Uśrednij wyniki po wszystkich seedach i od razu zapisz
+      // do pliku CSV (nie czekamy na koniec całego benchmarku).
+      // ----------------------------------------------------------
+      double avg_peek    = average(peek_times);
+      double avg_extract = average(extract_times);
+      double avg_insert  = average(insert_times);
+      double avg_modify  = average(modify_times);
+
+      result_exporter::append_row(csv, "peek",        n, avg_peek);
+      result_exporter::append_row(csv, "extract_max", n, avg_extract);
+      result_exporter::append_row(csv, "insert",      n, avg_insert);
+      result_exporter::append_row(csv, "modify_key",  n, avg_modify);
+      csv.flush(); // wymusz zapis na dysk
+
+      std::cout << "  peek        avg = " << avg_peek    << " ns\n";
+      std::cout << "  extract_max avg = " << avg_extract << " ns\n";
+      std::cout << "  insert      avg = " << avg_insert  << " ns\n";
+      std::cout << "  modify_key  avg = " << avg_modify  << " ns\n";
+
+    } // koniec pętli po punktach pomiarowych
+
+    csv.close();
+    std::cout << "\nWyniki zapisane do results/" << dataset_.get_name()
+              << "/" << structure_name << ".csv\n";
   }
 
 private:
   data_set dataset_;
 
-  // Podstawowy pomiar — ta sama operacja dla wszystkich instancji
-  double measure_operation(const std::vector<IIList<int> *> &instances,
-                           const std::function<void(IIList<int> *)> &operation) {
-    long long total_nanoseconds = 0;
-
-    for (auto list_instance : instances) {
-      auto start = std::chrono::high_resolution_clock::now();
-      operation(list_instance);
-      auto end = std::chrono::high_resolution_clock::now();
-      total_nanoseconds +=
-          std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
-              .count();
+  // ----------------------------------------------------------
+  //  Tworzy `count` identycznych kopii struktury załadowanych
+  //  z pliku `file` (pierwsze `n` elementów).
+  // ----------------------------------------------------------
+  template <typename ListType>
+  std::vector<IIList<int> *> make_copies(std::function<ListType *()> factory,
+                                         const std::string &file, int n,
+                                         int count) {
+    std::vector<IIList<int> *> copies(count);
+    for (int i = 0; i < count; ++i) {
+      copies[i] = factory();
+      dataset_.load_to_list(file, n, *copies[i]);
     }
-
-    if (instances.empty())
-      return 0.0;
-    return static_cast<double>(total_nanoseconds) / instances.size();
+    return copies;
   }
 
-  // Pomiar z losowym indeksem wyznaczonym z file_seed.
-  // use_n_plus_one=true  → indeks ∈ [0, n]   (insert)
-  // use_n_plus_one=false → indeks ∈ [0, n-1] (remove)
-  double measure_operation_with_seeds(
-      const std::vector<IIList<int> *> &instances,
-      const std::vector<unsigned int> &file_seeds, int n,
-      const std::function<void(IIList<int> *, int, int)> &operation,
-      bool use_n_plus_one) {
-    long long total_nanoseconds = 0;
+  // ----------------------------------------------------------
+  //  Zwalnia wszystkie kopie struktury.
+  // ----------------------------------------------------------
+  static void free_copies(std::vector<IIList<int> *> &copies) {
+    for (auto *ptr : copies) delete ptr;
+    copies.clear();
+  }
 
-    for (size_t i = 0; i < instances.size(); ++i) {
-      std::mt19937 rng(file_seeds[i]);
-      int upper = use_n_plus_one ? n : (n - 1);
-      std::uniform_int_distribution<int> idx_dist(0, upper);
-      int idx = idx_dist(rng);
+  // ----------------------------------------------------------
+  //  Oblicza średnią arytmetyczną wektora wartości.
+  // ----------------------------------------------------------
+  static double average(const std::vector<double> &v) {
+    if (v.empty()) return 0.0;
+    double sum = 0.0;
+    for (double x : v) sum += x;
+    return sum / static_cast<double>(v.size());
+  }
 
-      auto start = std::chrono::high_resolution_clock::now();
-      operation(instances[i], idx, n);
-      auto end = std::chrono::high_resolution_clock::now();
-      total_nanoseconds +=
-          std::chrono::duration_cast<std::chrono::nanoseconds>(end - start)
-              .count();
+  // ----------------------------------------------------------
+  //  Zwraca czas w nanosekundach między dwoma punktami.
+  // ----------------------------------------------------------
+  static double ns(std::chrono::high_resolution_clock::time_point t0,
+                   std::chrono::high_resolution_clock::time_point t1) {
+    return static_cast<double>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+  }
+
+  // ----------------------------------------------------------
+  //  Wczytuje pierwsze `n` par (klucz, wartość) z pliku danych.
+  //  Format pliku: "klucz,wartość" (jeden rekord na linię).
+  //  Potrzebne do deterministycznego wyboru elementu e
+  //  w teście modify_key – wybieramy spośród wartości,
+  //  które faktycznie istnieją w załadowanej strukturze.
+  // ----------------------------------------------------------
+  std::vector<std::pair<int,int>> load_pairs(const std::string &file,
+                                             int n) const {
+#ifndef PROJECT_ROOT_DIR
+#define PROJECT_ROOT_DIR "."
+#endif
+    std::vector<std::pair<int,int>> pairs;
+    pairs.reserve(n);
+
+    std::filesystem::path file_path =
+        std::filesystem::path(PROJECT_ROOT_DIR) / "data" /
+        dataset_.get_name() / file;
+    std::ifstream ifs(file_path);
+    if (!ifs) return pairs;
+
+    std::string line;
+    int count = 0;
+    while (count < n && std::getline(ifs, line)) {
+      std::istringstream ss(line);
+      int key, val;
+      char comma;
+      if (ss >> key >> comma >> val) {
+        pairs.emplace_back(key, val);
+        ++count;
+      }
     }
-
-    if (instances.empty())
-      return 0.0;
-    return static_cast<double>(total_nanoseconds) / instances.size();
+    return pairs;
   }
 };

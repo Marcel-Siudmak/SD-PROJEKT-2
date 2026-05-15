@@ -1,7 +1,7 @@
 #include "pairing_heap.hpp"
-#include <stdexcept>
 #include <functional>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 
 template <typename T>
@@ -275,3 +275,6 @@ void pairing_heap<T>::clear() {
 
 // Explicit template instantiations
 template class pairing_heap<int>;
+template class pairing_heap<double>;
+template class pairing_heap<std::string>;
+

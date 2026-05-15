@@ -52,21 +52,10 @@ public:
       std::cout << "Measuring peek()...\n";
       results["peek"][n] = measure_operation(instances, [](IIList<int> *list) {list->peek();});
 
-      // 2a. extract_max()
+      // 2. extract_max()
       std::cout << "Measuring extract_max() 1st...\n";
-      results["extract_max1"][n] = measure_operation(instances, [](IIList<int> *list) {list->extract_max();});
+      results["extract_max"][n] = measure_operation(instances, [](IIList<int> *list) {list->extract_max();});
 
-      // 2b. extract_max()
-      std::cout << "Measuring extract_max() 2nd...\n";
-      results["extract_max2"][n] = measure_operation(instances, [](IIList<int> *list) {list->extract_max();});
-
-      // 2c. extract_max()
-      std::cout << "Measuring extract_max() 3rd...\n";
-      results["extract_max3"][n] = measure_operation(instances, [](IIList<int> *list) {list->extract_max();});
-
-      // 2d. extract_max()
-      std::cout << "Measuring extract_max() 4th...\n";
-      results["extract_max4"][n] = measure_operation(instances, [](IIList<int> *list) {list->extract_max();});
 
       for (size_t i = 0; i < num_instances; ++i) {
         dataset_.load_to_list(test_files[i], n, *instances[i]);

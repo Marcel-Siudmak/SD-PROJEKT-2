@@ -1,4 +1,4 @@
-# Miniprojekt 2 - Struktury Danych
+# Miniprojekt 2 - Kolejki prioryTETOwe
 
 Projekt realizuje własną implementację wybranych struktur danych w języku C++ oraz moduł badawczy do analizy ich złożoności czasowej. Program opiera się na paradygmacie obiektowym z wykorzystaniem interfejsów (szablonów) i jest podzielony na pliki nagłówkowe (`*.hpp`) oraz źródłowe (`*.cpp`). Podstawowym typem danych w strukturach jest 4-bajtowa liczba całkowita. 
 

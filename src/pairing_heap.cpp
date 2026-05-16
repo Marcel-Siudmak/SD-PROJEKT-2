@@ -50,23 +50,6 @@ void pairing_heap<T>::deleteTree(Node<T>* node) {
     delete node;
 }
 
-// Helper function: find a node with given value
-template <typename T>
-Node<T>* pairing_heap<T>::findNode(Node<T>* node, T value) {
-    if (!node) return nullptr;
-    
-    if (node->_value == value) return node;
-    
-    // Search in children
-    Node<T>* child = node->child;
-    while (child) {
-        Node<T>* found = findNode(child, value);
-        if (found) return found;
-        child = child->sibling;
-    }
-    
-    return nullptr;
-}
 
 template <typename T>
 void pairing_heap<T>::insert(T value, int key) {
@@ -170,21 +153,33 @@ T pairing_heap<T>::peek() {
 
 // Helper function: find and disconnect a node from its parent
 template <typename T>
-bool pairing_heap<T>::disconnectNode(Node<T>*& node, T value) {
-    if (!node) return false;
+Node<T>* pairing_heap<T>::disconnectNode(Node<T>*& node, T value) {
+    if (!node) return nullptr;
     
-    // Check children
+    // Check direct children
     Node<T>* child = node->child;
     Node<T>* prev = nullptr;
+    
     while (child) {
         if (child->_value == value) {
+            // Found it - remove from sibling chain
             if (prev) {
                 prev->sibling = child->sibling;
             } else {
                 node->child = child->sibling;
             }
+            
+            // Merge the disconnected node's children back into the heap
+            if (child->child) {
+                Node<T>* mergedChildren = twoPassMerge(child->child);
+                root = meld(root, mergedChildren);
+            }
+            
+            // Detach the found node completely
             child->sibling = nullptr;
-            return true;
+            child->child = nullptr;
+            
+            return child;
         }
         prev = child;
         child = child->sibling;
@@ -193,33 +188,26 @@ bool pairing_heap<T>::disconnectNode(Node<T>*& node, T value) {
     // Recursively search in children's subtrees
     child = node->child;
     while (child) {
-        if (disconnectNode(child, value)) {
-            return true;
+        Node<T>* found = disconnectNode(child, value);
+        if (found) {
+            return found;
         }
         child = child->sibling;
     }
     
-    return false;
+    return nullptr;
 }
 
 template <typename T>
 void pairing_heap<T>::modify_key(T value, int new_key) {
-    Node<T>* node = findNode(root, value);
-    
-    if (!node) {
-        throw std::runtime_error("Value not found in heap");
-    }
-    
-    // Update the key
-    int old_key = node->_key;
-    node->_key = new_key;
-    
-    // If it's the root, no restructuring needed
-    if (node == root) {
+
+    if (root->_value == value) {
+        int old_key = root->_key;
+        root->_key = new_key;
         if(new_key < old_key) {
             // If the key decreased, we may need to move it down
-            Node<T>* children = node->child;
-            node->child = nullptr; // Detach children for merging
+            Node<T>* children = root->child;
+            root->child = nullptr; // Detach children for merging
             if (children) {
                 Node<T>* mergedChildren = twoPassMerge(children);
                 root = meld(root, mergedChildren);
@@ -227,23 +215,13 @@ void pairing_heap<T>::modify_key(T value, int new_key) {
         }
         else return;
     }
-    
-    // NAJPIERW odłącz węzeł od drzewa, szukając go od KORZENIA
-    disconnectNode(root, value);
-    
-    // POTEM zapisz dzieci modyfikowanego węzła i wyczyść jego wskaźniki
-    Node<T>* children = node->child;
-    node->child = nullptr;
-    node->sibling = nullptr;
-    
-    // Merge the node's children
-    if (children) {
-        Node<T>* mergedChildren = twoPassMerge(children);
-        Node<T>* newHeap = meld(node, mergedChildren);
-        root = meld(root, newHeap);
-    } else {
-        root = meld(root, node);
+
+    Node<T>* node = disconnectNode(root, value);
+    if (!node) {
+        throw std::runtime_error("Value not found in heap");
     }
+    node->_key = new_key; // Update the key
+    root = meld(root, node);
 }
 
 template <typename T>

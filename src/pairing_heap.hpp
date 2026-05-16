@@ -23,8 +23,7 @@ private:
   Node<T>* meld(Node<T>* heap1, Node<T>* heap2);
   Node<T>* twoPassMerge(Node<T>* firstSibling);
   void deleteTree(Node<T>* node);
-  Node<T>* findNode(Node<T>* node, T value);
-  bool disconnectNode(Node<T>*& node, T value);
+  Node<T>* disconnectNode(Node<T>*& node, T value);
 
 public:
   pairing_heap();

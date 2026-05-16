@@ -67,22 +67,18 @@ void pairing_heap<T>::insert(T value, int key) {
 template <typename T>
 T pairing_heap<T>::extract_max() {
     if (!root) {
-        std::cout<< "Cannot extract from empty heap." << std::endl;
         throw std::runtime_error("Cannot extract from empty heap");
     }
     T val = root->_value;
     Node<T>* oldRoot = root;
-    // std::cout << "Extracting max: " << val << std::endl;
     // Get the first child
     Node<T>* firstChild = root->child;
-    // std::cout<<count_root_children()<<"\n";
     if (firstChild) {
+        // If root has children, we need to merge them back and in process choose new root
         root = twoPassMerge(firstChild);
-        // std::cout << "Merged children of old root.\n";
     } else {
         root = nullptr;
     }
-    // std::cout << "Extracted max: " << val << std::endl;
     delete oldRoot;
     _size--;
     return val;
@@ -143,6 +139,7 @@ Node<T>* pairing_heap<T>::twoPassMerge(Node<T>* firstSibling) {
     return result;
 }
 
+// Returns the value of root
 template <typename T>
 T pairing_heap<T>::peek() {
     if (!root) {
@@ -152,6 +149,7 @@ T pairing_heap<T>::peek() {
 }
 
 // Helper function: find and disconnect a node from its parent
+// Required for modify_key to properly update heap structure
 template <typename T>
 Node<T>* pairing_heap<T>::disconnectNode(Node<T>*& node, T value) {
     if (!node) return nullptr;
@@ -200,6 +198,9 @@ Node<T>* pairing_heap<T>::disconnectNode(Node<T>*& node, T value) {
 
 template <typename T>
 void pairing_heap<T>::modify_key(T value, int new_key) {
+    if (!root) {
+        throw std::runtime_error("Cannot modify key in empty heap");
+    }
 
     if (root->_value == value) {
         int old_key = root->_key;
@@ -236,6 +237,7 @@ void pairing_heap<T>::display() {
         return;
     }
     std::cout << "Heap contents (value: key):" << std::endl;
+    // Lambda for recursive display with indentation to show structure
     std::function<void(Node<T>*, int)> displayHelper = [&](Node<T>* node, int level) {
         if (!node) return;
         std::cout << std::string(level * 2, ' ') << node->_value << ": " << node->_key << std::endl;

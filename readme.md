@@ -1,6 +1,6 @@
-# Miniprojekt 1 - Struktury Danych
+# Miniprojekt 2 - Struktury Danych
 
-Projekt realizuje własną implementację wybranych struktur danych w języku C++ oraz moduł badawczy do analizy ich złożoności czasowej. Program opiera się na paradygmacie obiektowym z wykorzystaniem interfejsów (szablonów) i jest podzielony na pliki nagłówkowe (`*.hpp`) oraz źródłowe (`*.cpp`). Podstawowym typem danych w strukturach jest 4-bajtowa liczba całkowita.
+Projekt realizuje własną implementację wybranych struktur danych w języku C++ oraz moduł badawczy do analizy ich złożoności czasowej. Program opiera się na paradygmacie obiektowym z wykorzystaniem interfejsów (szablonów) i jest podzielony na pliki nagłówkowe (`*.hpp`) oraz źródłowe (`*.cpp`). Podstawowym typem danych w strukturach jest 4-bajtowa liczba całkowita. 
 
 ## Spis treści
 * [Wymagania](#1-wymagania)
@@ -41,15 +41,12 @@ Aby zbudować projekt, wykonaj poniższe kroki w terminalu:
 ```text
 ├── src/
 │   ├── main.cpp
-│   ├── IList.hpp
-│   ├── ArrayList.hpp
-│   ├── ArrayList.cpp
-│   ├── SinglyLinkedList.hpp
-│   ├── SinglyLinkedList.cpp
-│   ├── DoublyLinkedList.hpp
-│   ├── DoublyLinkedList.cpp
+│   ├── IIList.hpp
+│   ├── pairing_heap.hpp
+│   ├── pairing_heap.cpp
+│   ├── priority_q.hpp
+│   ├── priority_q.cpp
 │   ├── Menu.hpp
-│   ├── Menu.cpp
 │   ├── Benchmark.hpp
 │   ├── Benchmark.cpp
 │   ├── DataHandler.hpp
@@ -69,20 +66,16 @@ Aby zbudować projekt, wykonaj poniższe kroki w terminalu:
 
 ### A. Abstrakcja i Interfejsy
 
-#### `IList.hpp` (Abstrakcja)
+#### `IIList.hpp` (Abstrakcja)
 Abstrakcyjna klasa bazowa (czysty interfejs) wykorzystująca szablony (**template**). Definiuje kontrakt dla wszystkich struktur danych. Zawiera deklaracje metod wirtualnych do manipulacji danymi (dodawanie/usuwanie w różnych miejscach, wyszukiwanie) oraz metody pomocnicze do zarządzania rozmiarem i czyszczenia pamięci.
 
 ### B. Struktury Danych (Moduły implementacyjne)
 
-#### `ArrayList`
-`ArrayList.hpp` / `ArrayList.cpp` – Implementacja tablicy dynamicznej. Moduł ten zarządza ciągłym blokiem pamięci. Zawiera definicję klasy i szablonu oraz logikę relokacji pamięci (powiększanie rozmiaru) i przesuwania elementów przy operacjach wstawiania/usuwania.
+#### `pairing_heap`
+`pairing_heap.hpp` / `pairing_heap.cpp` – Implementacja kopca parującego, posiada metody z IIList.hpp (peek(), extract_max(), modify_key(), insert(), display(), clear()). Struktura leniwa o amortyzowanym czasie extract_max() oraz insert().
 
-#### `SinglyLinkedList`
-`SinglyLinkedList.hpp` / `SinglyLinkedList.cpp` – Implementacja listy jednokierunkowej. Definiuje strukturę węzła (**Node**) zawierającą dane oraz wskaźnik `next`. Moduł zarządza wskaźnikami `head` i `tail`, zapewniając optymalne dodawanie na końcach listy.
-
-#### `DoublyLinkedList`
-`DoublyLinkedList.hpp` / `DoublyLinkedList.cpp` – Implementacja listy dwukierunkowej. Węzły w tym module posiadają dodatkowy wskaźnik `prev`. Pozwala to na efektywne poruszanie się po strukturze w obu kierunkach oraz szybsze usuwanie ostatniego elementu w porównaniu do listy jednokierunkowej.
-
+#### `priority_q`
+`priority_q.hpp` / `priority_q.cpp` – Implementacja kolejki priorytetowej na liście, posiada metody z IIList.hpp (peek(), extract_max(), modify_key(), insert(), display(), clear()). Dodatkowo zawiera delegację do implementacji kopca parującego. 
 
 
 ### C. Logika Aplikacji i Interfejs Użytkownika
